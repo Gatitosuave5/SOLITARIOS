@@ -7,7 +7,6 @@ import { useState, useEffect } from "react"
 interface Student {
   id: string
   nombre: string
-  rut: string
   promedio: number
   creditosAprobados: number
   creditosReprobados: number
@@ -98,10 +97,7 @@ export default function ReportsSection() {
               .map((student) => (
                 <div key={student.id} className="p-3 bg-white rounded border border-red-200">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-red-700">{student.nombre}</p>
-                      <p className="text-sm text-muted-foreground">RUT: {student.rut}</p>
-                    </div>
+                    
                     <div className="text-right">
                       <p className="font-bold text-red-600">{(student.riesgoDesercion * 100).toFixed(1)}%</p>
                       <p className="text-xs text-red-600">Probabilidad de Deserción</p>

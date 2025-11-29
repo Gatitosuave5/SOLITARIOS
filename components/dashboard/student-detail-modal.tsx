@@ -56,12 +56,7 @@ export default function StudentDetailModal({ student, isOpen, onClose }: Student
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{student.nombre}</DialogTitle>
-          <DialogDescription>
-            RUT: {student.rut} | Ciclo: {student.cicloActual}
-          </DialogDescription>
-        </DialogHeader>
+        
 
         {!showResults ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">

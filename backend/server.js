@@ -126,4 +126,89 @@ app.get("/api/alumnos", verifyToken, async (req, res) => {
   }
 });
 
+
+// Obtener todos los estudiantes
+app.get("/api/estudiantes", async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM alumnos");
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error obteniendo alumnos" });
+  }
+});
+
+// Crear nuevo estudiante
+app.post("/api/estudiantes", async (req, res) => {
+  try {
+    const {
+      nombre,
+      codigo,
+      promedio_ponderado,
+      creditos_aprobados,
+      creditos_reprobados,
+      cursos_reprobados,
+      asistencia,
+      avance_academico,
+      ciclo_actual,
+      veces_repitio_curso,
+      nivel_socioeconomico,
+      tipo_colegio,
+      trabaja_actualmente,
+      ingresos_familiares,
+      edad,
+      genero,
+      vive_con_familia,
+      horas_estudio,
+      faltas_totales,
+      tardanzas,
+      deserta
+    } = req.body;
+
+    const sql = `
+      INSERT INTO alumnos (
+        nombre, codigo, promedio_ponderado, creditos_aprobados, creditos_reprobados,
+        cursos_reprobados, asistencia, avance_academico, ciclo_actual, veces_repitio_curso,
+        nivel_socioeconomico, tipo_colegio, trabaja_actualmente, ingresos_familiares, edad,
+        genero, vive_con_familia, horas_estudio, faltas_totales, tardanzas, deserta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      nombre,
+      codigo,
+      promedio_ponderado,
+      creditos_aprobados,
+      creditos_reprobados,
+      cursos_reprobados,
+      asistencia,
+      avance_academico,
+      ciclo_actual,
+      veces_repitio_curso,
+      nivel_socioeconomico,
+      tipo_colegio,
+      trabaja_actualmente,
+      ingresos_familiares,
+      edad,
+      genero,
+      vive_con_familia,
+      horas_estudio,
+      faltas_totales,
+      tardanzas,
+      deserta || 0
+    ];
+
+    await db.query(sql, values);
+
+    res.json({ message: "Estudiante creado correctamente" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error creando estudiante" });
+  }
+});
+
+
+
+
 app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
