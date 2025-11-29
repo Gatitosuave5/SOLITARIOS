@@ -24,7 +24,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className="dark">
+    <html
+      lang="es"
+      className="dark"
+      suppressHydrationWarning  // <-- agregado, lo mínimo necesario
+    >
       <body className={`${_geist.variable} ${_geistMono.variable} font-sans antialiased`}>
         {children}
       </body>

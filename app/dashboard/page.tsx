@@ -55,7 +55,7 @@ export default function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Reportes</span>
+              <span className="hidden sm:inline">Alertas</span>
             </TabsTrigger>
           </TabsList>
 

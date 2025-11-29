@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useEffect, useState } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 
@@ -12,43 +14,42 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Panel creado por mi causa",
-};
+// ❌ metadata eliminado
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [usuario, setUsuario] = useState<{ nombre: string; correo: string } | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("usuario");
+    if (storedUser) {
+      setTimeout(() => {
+        setUsuario(JSON.parse(storedUser));
+      }, 0);
+    }
+  }, []);
+
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex h-screen">
 
-          {/* Sidebar */}
           <aside className="w-64 bg-gray-900 text-white p-4">
             <h2 className="text-xl font-bold mb-6">Mi Panel</h2>
             <nav className="space-y-2">
-              <a href="/usuarios" className="block p-2 rounded hover:bg-gray-700">
-                Usuarios
-              </a>
-              <a href="/alumnos" className="block p-2 rounded hover:bg-gray-700">
-                Alumnos
-              </a>
-              <a href="/reportes" className="block p-2 rounded hover:bg-gray-700">
-                Reportes
-              </a>
+              <a href="/panel" className="block p-2 rounded hover:bg-gray-700">Inicio</a>
+              <a href="/dashboard" className="block p-2 rounded hover:bg-gray-700">Panel</a>
+              <a href="/reportes" className="block p-2 rounded hover:bg-gray-700">Reportes</a>
             </nav>
           </aside>
 
-          {/* Main content */}
           <div className="flex-1 flex flex-col">
             <header className="h-16 bg-white shadow px-4 flex items-center justify-between">
               <h1 className="text-lg font-semibold">Dashboard</h1>
+
               <div className="flex items-center space-x-3">
-                <span className="text-gray-600">Gabriel</span>
+                <span className="text-gray-600">
+                  {usuario ? usuario.nombre : "Cargando..."}
+                </span>
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
               </div>
             </header>
