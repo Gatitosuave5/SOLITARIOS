@@ -19,7 +19,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
+  
     try {
       if (!email || !password) {
         setError("Por favor completa todos los campos");
@@ -31,27 +31,43 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-
-      // Llamada al backend
+  
+      
       const res = await fetch("http://localhost:3001/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: email, contraseña: password }),
       });
-
+  
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error en la autenticación");
-
-      // Guardar token en localStorage
+  
+      
       localStorage.setItem("token", data.token);
-
-      // Redirigir a dashboard
+  
+     
+      const payload = JSON.parse(atob(data.token.split(".")[1]));
+  
+   
+      localStorage.setItem(
+        "usuario",
+        JSON.stringify({
+          id: payload.id,
+          nombre: payload.nombre,
+          correo: payload.correo,
+          rol: payload.rol,
+        })
+      );
+  
+      
       router.push("/panel");
+  
     } catch (err: any) {
       setError(err.message);
       setIsLoading(false);
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
