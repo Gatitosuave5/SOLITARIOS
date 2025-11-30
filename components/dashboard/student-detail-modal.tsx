@@ -17,28 +17,28 @@ interface StudentDetailModalProps {
 
 function preprocessStudent(student: any): number[] {
   return [
-    student.promedio / 20,              // 1
-    student.asistencia / 100,           // 2
-    student.avanceAcademico / 100,      // 3
-    student.horasEstudio / 30,          // 4
-    student.edad / 100,                 // 5
-    student.creditosAprobados / 200,    // 6
-    student.creditosReprobados / 50,    // 7
-    student.cursosReprobados / 10,      // 8
-    student.vecesRepitio / 10,          // 9
-    student.trabaja ? 1 : 0,            // 10
-    student.viveConFamilia ? 1 : 0,     // 11
-    student.cicloActual / 10,           // 12
+    student.promedio / 20,              
+    student.asistencia / 100,           
+    student.avanceAcademico / 100,      
+    student.horasEstudio / 30,          
+    student.edad / 100,                
+    student.creditosAprobados / 200,    
+    student.creditosReprobados / 50,    
+    student.cursosReprobados / 10,      
+    student.vecesRepitio / 10,          
+    student.trabaja ? 1 : 0,            
+    student.viveConFamilia ? 1 : 0,     
+    student.cicloActual / 10,          
     student.nivelSocioeconomico === "alto" ? 1 : student.nivelSocioeconomico === "medio" ? 0.5 : 0, // 13
-    student.tipoColegio === "privado" ? 1 : 0, // 14
-    student.ingresosfamiliares / 10000, // 15, normalizado según rango
-    student.faltasTotales / 20,         // 16
-    student.tardanzas / 20,             // 17
-    student.genero === "masculino" ? 1 : 0, // 18
-    student.nombre.length / 50,         // 19, solo como dummy feature si tu modelo lo espera
-    student.apellido?.length / 50 || 0, // 20, si existe
-    student.someFeature21 || 0,         // 21, placeholder si tu modelo requiere
-    student.someFeature22 || 0          // 22, placeholder si tu modelo requiere
+    student.tipoColegio === "privado" ? 1 : 0, 
+    student.ingresosfamiliares / 10000, 
+    student.faltasTotales / 20,         
+    student.tardanzas / 20,             
+    student.genero === "masculino" ? 1 : 0, 
+    student.nombre.length / 50,         
+    student.apellido?.length / 50 || 0, 
+    student.someFeature21 || 0,        
+    student.someFeature22 || 0         
   ]
 }
 
@@ -50,12 +50,12 @@ export default function StudentDetailModal({ student, isOpen, onClose, model }: 
 
 
   const handleVerify = () => {
-    // Aquí no necesitamos setLocalStudent ni estados
+    
     console.log("Mostrando información del alumno con riesgo:", student.riesgoDesercion)
   }
   
 
-  // Prepare data for chart
+  
   const chartData = [
     {
       name: "Promedio",
@@ -93,7 +93,7 @@ export default function StudentDetailModal({ student, isOpen, onClose, model }: 
          
          
           <div className="space-y-6 py-4"> 
-            {/* Risk Alert */}
+            
             <Card
   className={`p-6 border-2 ${
     isHighRisk
