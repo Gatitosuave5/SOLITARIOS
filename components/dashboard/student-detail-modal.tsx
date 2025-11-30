@@ -16,157 +16,127 @@ interface StudentDetailModalProps {
 }
 
 function preprocessStudent(student: any): number[] {
-  const userInput = [
-    student.promedio / 20,
-    student.asistencia / 100,
-    student.avanceAcademico / 100,
-    student.horasEstudio / 30,
-    student.edad / 100,
-    student.creditosAprobados / 200,
-    student.creditosReprobados / 50,
-    student.cursosReprobados / 10,
-    student.vecesRepitio / 10,
-    student.trabaja ? 1 : 0,
-    student.viveConFamilia ? 1 : 0
+  return [
+    student.promedio / 20,              // 1
+    student.asistencia / 100,           // 2
+    student.avanceAcademico / 100,      // 3
+    student.horasEstudio / 30,          // 4
+    student.edad / 100,                 // 5
+    student.creditosAprobados / 200,    // 6
+    student.creditosReprobados / 50,    // 7
+    student.cursosReprobados / 10,      // 8
+    student.vecesRepitio / 10,          // 9
+    student.trabaja ? 1 : 0,            // 10
+    student.viveConFamilia ? 1 : 0,     // 11
+    student.cicloActual / 10,           // 12
+    student.nivelSocioeconomico === "alto" ? 1 : student.nivelSocioeconomico === "medio" ? 0.5 : 0, // 13
+    student.tipoColegio === "privado" ? 1 : 0, // 14
+    student.ingresosfamiliares / 10000, // 15, normalizado según rango
+    student.faltasTotales / 20,         // 16
+    student.tardanzas / 20,             // 17
+    student.genero === "masculino" ? 1 : 0, // 18
+    student.nombre.length / 50,         // 19, solo como dummy feature si tu modelo lo espera
+    student.apellido?.length / 50 || 0, // 20, si existe
+    student.someFeature21 || 0,         // 21, placeholder si tu modelo requiere
+    student.someFeature22 || 0          // 22, placeholder si tu modelo requiere
   ]
-
-  // Rellenar con ceros los features que no quieres mostrar
-  while (userInput.length < 22) {
-    userInput.push(0)
-  }
-
-  return userInput
 }
+
 
 export default function StudentDetailModal({ student, isOpen, onClose, model }: StudentDetailModalProps) {
   
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [localStudent, setLocalStudent] = useState({ ...student, riesgoDesercion: 0 })
-  const [showResults, setShowResults] = useState(false)
-
-  const handleVerify = async () => {
-    if (!model) {
-      console.log("El modelo aún no está cargado")
-      return
-    }
-    setIsVerifying(true)
-    try {
-      const inputData = preprocessStudent(localStudent)
-      const tensor = tf.tensor2d([inputData])
-      const predictionTensor = model.predict(tensor) as tf.Tensor
-      const predictionArray = Array.from(await predictionTensor.data())
-      const prediction = Number(predictionArray[0])
-      setLocalStudent(prev => ({ ...prev, riesgoDesercion: prediction }))
-      setShowResults(true)
-      tensor.dispose()
-      predictionTensor.dispose()
-    } catch (err) {
-      console.error("Error en predicción:", err)
-    }
-    setIsVerifying(false)
-  }
+  const riesgo = student.riesgoDesercion ?? 0
   
+
+
+  const handleVerify = () => {
+    // Aquí no necesitamos setLocalStudent ni estados
+    console.log("Mostrando información del alumno con riesgo:", student.riesgoDesercion)
+  }
   
 
   // Prepare data for chart
-  const chartData = useMemo(() => [
+  const chartData = [
     {
       name: "Promedio",
-      value: Math.min((localStudent.promedio / 20) * 100, 100),
-      label: localStudent.promedio.toFixed(2),
+      value: Math.min((student.promedio / 20) * 100, 100),
+      label: student.promedio.toFixed(2),
     },
     {
       name: "Asistencia",
-      value: Math.min(localStudent.asistencia, 100),
-      label: `${localStudent.asistencia.toFixed(1)}%`,
+      value: Math.min(student.asistencia, 100),
+      label: `${student.asistencia.toFixed(1)}%`,
     },
     {
       name: "Avance",
-      value: Math.min(localStudent.avanceAcademico, 100),
-      label: `${localStudent.avanceAcademico.toFixed(1)}%`,
+      value: Math.min(student.avanceAcademico, 100),
+      label: `${student.avanceAcademico.toFixed(1)}%`,
     },
     {
       name: "Horas Estudio",
-      value: Math.min((localStudent.horasEstudio / 30) * 100, 100),
-      label: `${localStudent.horasEstudio}h`,
+      value: Math.min((student.horasEstudio / 30) * 100, 100),
+      label: `${student.horasEstudio}h`,
     },
-  ], [localStudent])
+  ]
+  
 
-
-  const riskPercentage = localStudent.riesgoDesercion * 100
-  const isHighRisk = localStudent.riesgoDesercion > 0.7
-  const isMediumRisk = localStudent.riesgoDesercion > 0.4
+  const riskPercentage = riesgo * 100
+  const isHighRisk = riesgo > 0.7
+  const isMediumRisk = riesgo > 0.4
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogTitle className="sr-only">Información del Estudiante</DialogTitle>
 
-        {!showResults ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
-            {isVerifying && (
-              <div className="w-full max-w-xs">
-                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-4">
-                  <div className="bg-blue-600 h-full w-1/3 animate-pulse"></div>
-                </div>
-                <p className="text-center text-sm text-muted-foreground">Verificando información del alumno...</p>
-              </div>
-            )}
-            {!isVerifying && (
-              <>
-                <AlertCircle className="w-12 h-12 text-blue-600" />
-                <p className="text-center text-muted-foreground">
-                  Haz clic en el botón de abajo para verificar y analizar la información del alumno
-                </p>
-                <Button onClick={handleVerify} size="lg" className="gap-2">
-                  Verificar
-                </Button>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-6 py-4">
+        
+         
+         
+          <div className="space-y-6 py-4"> 
             {/* Risk Alert */}
             <Card
-              className={`p-6 border-2 ${
-                isHighRisk
-                  ? "bg-red-50 border-red-300"
-                  : isMediumRisk
-                    ? "bg-orange-50 border-orange-300"
-                    : "bg-green-50 border-green-300"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div>
-                  {isHighRisk ? (
-                    <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0" />
-                  ) : isMediumRisk ? (
-                    <AlertCircle className="w-8 h-8 text-orange-600 flex-shrink-0" />
-                  ) : (
-                    <CheckCircle className="w-8 h-8 text-green-600 flex-shrink-0" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3
-                    className={`text-lg font-bold mb-2 ${
-                      isHighRisk ? "text-red-700" : isMediumRisk ? "text-orange-700" : "text-green-700"
-                    }`}
-                  >
-                    {isHighRisk ? "RIESGO ALTO" : isMediumRisk ? "RIESGO MEDIO" : "RIESGO BAJO"}
-                  </h3>
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className={`text-4xl font-bold ${
-                        isHighRisk ? "text-red-600" : isMediumRisk ? "text-orange-600" : "text-green-600"
-                      }`}
-                    >
-                      {riskPercentage.toFixed(1)}%
-                    </span>
-                    <span className="text-sm text-muted-foreground">Probabilidad de Deserción</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
+  className={`p-6 border-2 ${
+    isHighRisk
+      ? "bg-red-50 border-red-300"
+      : isMediumRisk
+        ? "bg-orange-50 border-orange-300"
+        : "bg-green-50 border-green-300"
+  }`}
+>
+  <div className="flex items-start gap-4">
+    <div>
+      {isHighRisk ? (
+        <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0" />
+      ) : isMediumRisk ? (
+        <AlertCircle className="w-8 h-8 text-orange-600 flex-shrink-0" />
+      ) : (
+        <CheckCircle className="w-8 h-8 text-green-600 flex-shrink-0" />
+      )}
+    </div>
+    <div className="flex-1">
+      <h3
+        className={`text-lg font-bold mb-2 ${
+          isHighRisk ? "text-red-700" : isMediumRisk ? "text-orange-700" : "text-green-700"
+        }`}
+      >
+        {isHighRisk ? "RIESGO ALTO" : isMediumRisk ? "RIESGO MEDIO" : "RIESGO BAJO"}
+      </h3>
+      <div className="flex items-baseline gap-2">
+        <span
+          className={`text-4xl font-bold ${
+            isHighRisk ? "text-red-600" : isMediumRisk ? "text-orange-600" : "text-green-600"
+          }`}
+        >
+          {student.riesgoDesercion !== undefined
+            ? (student.riesgoDesercion * 100).toFixed(1) + "%"
+            : "--"}
+        </span>
+        <span className="text-sm text-muted-foreground">Probabilidad de Deserción</span>
+      </div>
+    </div>
+  </div>
+</Card>
+
 
             {/* Gráfico Section */}
             <div>
@@ -194,35 +164,35 @@ export default function StudentDetailModal({ student, isOpen, onClose, model }: 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Promedio Ponderado:</span>
-                      <span className="font-semibold">{localStudent.promedio.toFixed(2)}</span>
+                      <span className="font-semibold">{student.promedio.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Créditos Aprobados:</span>
-                      <span className="font-semibold">{localStudent.creditosAprobados}</span>
+                      <span className="font-semibold">{student.creditosAprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Créditos Reprobados:</span>
-                      <span className="font-semibold">{localStudent.creditosReprobados}</span>
+                      <span className="font-semibold">{student.creditosReprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cursos Reprobados:</span>
-                      <span className="font-semibold">{localStudent.cursosReprobados}</span>
+                      <span className="font-semibold">{student.cursosReprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Asistencia:</span>
-                      <span className="font-semibold">{localStudent.asistencia.toFixed(1)}%</span>
+                      <span className="font-semibold">{student.asistencia.toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Avance Académico:</span>
-                      <span className="font-semibold">{localStudent.avanceAcademico.toFixed(1)}%</span>
+                      <span className="font-semibold">{student.avanceAcademico.toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Horas de Estudio:</span>
-                      <span className="font-semibold">{localStudent.horasEstudio}h/semana</span>
+                      <span className="font-semibold">{student.horasEstudio}h/semana</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Faltas Totales:</span>
-                      <span className="font-semibold">{localStudent.faltasTotales}</span>
+                      <span className="font-semibold">{student.faltasTotales}</span>
                     </div>
                   </div>
                 </Card>
@@ -233,35 +203,35 @@ export default function StudentDetailModal({ student, isOpen, onClose, model }: 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Edad:</span>
-                      <span className="font-semibold">{localStudent.edad} años</span>
+                      <span className="font-semibold">{student.edad} años</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Género:</span>
-                      <span className="font-semibold capitalize">{localStudent.genero}</span>
+                      <span className="font-semibold capitalize">{student.genero}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ciclo Actual:</span>
-                      <span className="font-semibold">Ciclo {localStudent.cicloActual}</span>
+                      <span className="font-semibold">Ciclo {student.cicloActual}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Veces Repitió Curso:</span>
-                      <span className="font-semibold">{localStudent.vecesRepitio}</span>
+                      <span className="font-semibold">{student.vecesRepitio}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Nivel Socioeconómico:</span>
-                      <span className="font-semibold capitalize">{localStudent.nivelSocioeconomico}</span>
+                      <span className="font-semibold capitalize">{student.nivelSocioeconomico}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tipo de Colegio:</span>
-                      <span className="font-semibold capitalize">{localStudent.tipoColegio}</span>
+                      <span className="font-semibold capitalize">{student.tipoColegio}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Trabaja:</span>
-                      <span className="font-semibold">{localStudent.trabaja ? "Sí" : "No"}</span>
+                      <span className="font-semibold">{student.trabaja ? "Sí" : "No"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Vive con Familia:</span>
-                      <span className="font-semibold">{localStudent.viveConFamilia ? "Sí" : "No"}</span>
+                      <span className="font-semibold">{student.viveConFamilia ? "Sí" : "No"}</span>
                     </div>
                   </div>
                 </Card>
@@ -294,17 +264,12 @@ export default function StudentDetailModal({ student, isOpen, onClose, model }: 
               </ul>
             </Card>
           </div>
-        )}
+        )
 
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="outline" onClick={onClose}>
             Cerrar
           </Button>
-          {showResults && (
-            <Button onClick={() => setShowResults(false)} variant="outline">
-              Nueva Verificación
-            </Button>
-          )}
         </div>
       </DialogContent>
     </Dialog>
