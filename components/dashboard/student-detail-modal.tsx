@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+import * as tf from "@tensorflow/tfjs"   // <-- Aquí
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -13,45 +14,105 @@ interface StudentDetailModalProps {
   onClose: () => void
 }
 
+function preprocessStudent(student: any): number[] {
+  return [
+    student.promedio / 20,             // Suponiendo promedio máximo 20
+    student.asistencia / 100,          // Asistencia en %
+    student.avanceAcademico / 100,     // Avance en %
+    student.horasEstudio / 30,         // Horas de estudio normalizadas a 30h
+    student.edad / 100,                // Edad normalizada a 100 años
+    student.creditosAprobados / 200,   // Ajusta según tu máximo
+    student.creditosReprobados / 50,   // Ajusta según tu máximo
+    student.cursosReprobados / 10,     // Ajusta según tu máximo
+    student.vecesRepitio / 10,         // Ajusta según tu máximo
+    student.trabaja ? 1 : 0,           // Booleano
+    student.viveConFamilia ? 1 : 0     // Booleano
+  ]
+}
+
 export default function StudentDetailModal({ student, isOpen, onClose }: StudentDetailModalProps) {
+  const [model, setModel] = useState<tf.LayersModel | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [localStudent, setLocalStudent] = useState({ ...student, riesgoDesercion: 0 })
+
+
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        const loadedModel = await tf.loadLayersModel("/tfjs_model/model.json")
+        setModel(loadedModel)
+      } catch (err) {
+        console.error("Error cargando el modelo:", err)
+      }
+    }
+    loadModel()
+  }, [])
+  
+
   const [showResults, setShowResults] = useState(false)
 
   const handleVerify = async () => {
+    if (!model) {
+      console.log("El modelo aún no está cargado")
+      return
+    }
+  
     setIsVerifying(true)
-    // Simulate loading
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+  
+    try {
+      const inputData = preprocessStudent(localStudent)
+      const tensor = tf.tensor2d([inputData])
+  
+      const predictionTensor = model.predict(tensor) as tf.Tensor
+      const predictionArray = Array.from(await predictionTensor.data())
+      console.log("Predicción RAW:", predictionArray)
+      
+      const prediction = Number(predictionArray[0])
+      
+      if (isNaN(prediction)) {
+        console.error("❌ ERROR: La predicción es NaN. Revisa la forma del input del modelo.")
+        setIsVerifying(false)
+        return
+      }
+  
+      setLocalStudent(prev => ({ ...prev, riesgoDesercion: prediction }))
+      setShowResults(true)
+    } catch (err) {
+      console.error("Error en predicción:", err)
+    }
+  
     setIsVerifying(false)
-    setShowResults(true)
   }
+  
 
   // Prepare data for chart
-  const chartData = [
+  const chartData = useMemo(() => [
     {
       name: "Promedio",
-      value: Math.min(student.promedio * 20, 100),
-      label: student.promedio.toFixed(2),
+      value: Math.min((localStudent.promedio / 20) * 100, 100),
+      label: localStudent.promedio.toFixed(2),
     },
     {
       name: "Asistencia",
-      value: Math.min(student.asistencia, 100),
-      label: `${student.asistencia.toFixed(1)}%`,
+      value: Math.min(localStudent.asistencia, 100),
+      label: `${localStudent.asistencia.toFixed(1)}%`,
     },
     {
       name: "Avance",
-      value: Math.min(student.avanceAcademico, 100),
-      label: `${student.avanceAcademico.toFixed(1)}%`,
+      value: Math.min(localStudent.avanceAcademico, 100),
+      label: `${localStudent.avanceAcademico.toFixed(1)}%`,
     },
     {
       name: "Horas Estudio",
-      value: Math.min((student.horasEstudio / 30) * 100, 100),
-      label: `${student.horasEstudio}h`,
+      value: Math.min((localStudent.horasEstudio / 30) * 100, 100),
+      label: `${localStudent.horasEstudio}h`,
     },
-  ]
+  ], [localStudent])
 
-  const riskPercentage = student.riesgoDesercion * 100
-  const isHighRisk = student.riesgoDesercion > 0.7
-  const isMediumRisk = student.riesgoDesercion > 0.4
+
+  const riskPercentage = localStudent.riesgoDesercion * 100
+  const isHighRisk = localStudent.riesgoDesercion > 0.7
+  const isMediumRisk = localStudent.riesgoDesercion > 0.4
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -150,35 +211,35 @@ export default function StudentDetailModal({ student, isOpen, onClose }: Student
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Promedio Ponderado:</span>
-                      <span className="font-semibold">{student.promedio.toFixed(2)}</span>
+                      <span className="font-semibold">{localStudent.promedio.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Créditos Aprobados:</span>
-                      <span className="font-semibold">{student.creditosAprobados}</span>
+                      <span className="font-semibold">{localStudent.creditosAprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Créditos Reprobados:</span>
-                      <span className="font-semibold">{student.creditosReprobados}</span>
+                      <span className="font-semibold">{localStudent.creditosReprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cursos Reprobados:</span>
-                      <span className="font-semibold">{student.cursosReprobados}</span>
+                      <span className="font-semibold">{localStudent.cursosReprobados}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Asistencia:</span>
-                      <span className="font-semibold">{student.asistencia.toFixed(1)}%</span>
+                      <span className="font-semibold">{localStudent.asistencia.toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Avance Académico:</span>
-                      <span className="font-semibold">{student.avanceAcademico.toFixed(1)}%</span>
+                      <span className="font-semibold">{localStudent.avanceAcademico.toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Horas de Estudio:</span>
-                      <span className="font-semibold">{student.horasEstudio}h/semana</span>
+                      <span className="font-semibold">{localStudent.horasEstudio}h/semana</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Faltas Totales:</span>
-                      <span className="font-semibold">{student.faltasTotales}</span>
+                      <span className="font-semibold">{localStudent.faltasTotales}</span>
                     </div>
                   </div>
                 </Card>
@@ -189,35 +250,35 @@ export default function StudentDetailModal({ student, isOpen, onClose }: Student
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Edad:</span>
-                      <span className="font-semibold">{student.edad} años</span>
+                      <span className="font-semibold">{localStudent.edad} años</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Género:</span>
-                      <span className="font-semibold capitalize">{student.genero}</span>
+                      <span className="font-semibold capitalize">{localStudent.genero}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ciclo Actual:</span>
-                      <span className="font-semibold">Ciclo {student.cicloActual}</span>
+                      <span className="font-semibold">Ciclo {localStudent.cicloActual}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Veces Repitió Curso:</span>
-                      <span className="font-semibold">{student.vecesRepitio}</span>
+                      <span className="font-semibold">{localStudent.vecesRepitio}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Nivel Socioeconómico:</span>
-                      <span className="font-semibold capitalize">{student.nivelSocioeconomico}</span>
+                      <span className="font-semibold capitalize">{localStudent.nivelSocioeconomico}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tipo de Colegio:</span>
-                      <span className="font-semibold capitalize">{student.tipoColegio}</span>
+                      <span className="font-semibold capitalize">{localStudent.tipoColegio}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Trabaja:</span>
-                      <span className="font-semibold">{student.trabaja ? "Sí" : "No"}</span>
+                      <span className="font-semibold">{localStudent.trabaja ? "Sí" : "No"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Vive con Familia:</span>
-                      <span className="font-semibold">{student.viveConFamilia ? "Sí" : "No"}</span>
+                      <span className="font-semibold">{localStudent.viveConFamilia ? "Sí" : "No"}</span>
                     </div>
                   </div>
                 </Card>
