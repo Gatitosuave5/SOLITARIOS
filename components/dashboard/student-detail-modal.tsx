@@ -10,45 +10,38 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface StudentDetailModalProps {
   student: any
-  isOpen: boolean
+  isOpen: boolean 
   onClose: () => void
+  model: tf.GraphModel | null  // <-- recibe el modelo como prop
 }
 
 function preprocessStudent(student: any): number[] {
-  return [
-    student.promedio / 20,             // Suponiendo promedio máximo 20
-    student.asistencia / 100,          // Asistencia en %
-    student.avanceAcademico / 100,     // Avance en %
-    student.horasEstudio / 30,         // Horas de estudio normalizadas a 30h
-    student.edad / 100,                // Edad normalizada a 100 años
-    student.creditosAprobados / 200,   // Ajusta según tu máximo
-    student.creditosReprobados / 50,   // Ajusta según tu máximo
-    student.cursosReprobados / 10,     // Ajusta según tu máximo
-    student.vecesRepitio / 10,         // Ajusta según tu máximo
-    student.trabaja ? 1 : 0,           // Booleano
-    student.viveConFamilia ? 1 : 0     // Booleano
+  const userInput = [
+    student.promedio / 20,
+    student.asistencia / 100,
+    student.avanceAcademico / 100,
+    student.horasEstudio / 30,
+    student.edad / 100,
+    student.creditosAprobados / 200,
+    student.creditosReprobados / 50,
+    student.cursosReprobados / 10,
+    student.vecesRepitio / 10,
+    student.trabaja ? 1 : 0,
+    student.viveConFamilia ? 1 : 0
   ]
+
+  // Rellenar con ceros los features que no quieres mostrar
+  while (userInput.length < 22) {
+    userInput.push(0)
+  }
+
+  return userInput
 }
 
-export default function StudentDetailModal({ student, isOpen, onClose }: StudentDetailModalProps) {
-  const [model, setModel] = useState<tf.LayersModel | null>(null)
+export default function StudentDetailModal({ student, isOpen, onClose, model }: StudentDetailModalProps) {
+  
   const [isVerifying, setIsVerifying] = useState(false)
   const [localStudent, setLocalStudent] = useState({ ...student, riesgoDesercion: 0 })
-
-
-  useEffect(() => {
-    const loadModel = async () => {
-      try {
-        const loadedModel = await tf.loadLayersModel("/tfjs_model/model.json")
-        setModel(loadedModel)
-      } catch (err) {
-        console.error("Error cargando el modelo:", err)
-      }
-    }
-    loadModel()
-  }, [])
-  
-
   const [showResults, setShowResults] = useState(false)
 
   const handleVerify = async () => {
@@ -56,33 +49,23 @@ export default function StudentDetailModal({ student, isOpen, onClose }: Student
       console.log("El modelo aún no está cargado")
       return
     }
-  
     setIsVerifying(true)
-  
     try {
       const inputData = preprocessStudent(localStudent)
       const tensor = tf.tensor2d([inputData])
-  
       const predictionTensor = model.predict(tensor) as tf.Tensor
       const predictionArray = Array.from(await predictionTensor.data())
-      console.log("Predicción RAW:", predictionArray)
-      
       const prediction = Number(predictionArray[0])
-      
-      if (isNaN(prediction)) {
-        console.error("❌ ERROR: La predicción es NaN. Revisa la forma del input del modelo.")
-        setIsVerifying(false)
-        return
-      }
-  
       setLocalStudent(prev => ({ ...prev, riesgoDesercion: prediction }))
       setShowResults(true)
+      tensor.dispose()
+      predictionTensor.dispose()
     } catch (err) {
       console.error("Error en predicción:", err)
     }
-  
     setIsVerifying(false)
   }
+  
   
 
   // Prepare data for chart
@@ -117,7 +100,7 @@ export default function StudentDetailModal({ student, isOpen, onClose }: Student
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        
+        <DialogTitle className="sr-only">Información del Estudiante</DialogTitle>
 
         {!showResults ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">

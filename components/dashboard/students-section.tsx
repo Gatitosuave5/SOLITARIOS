@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
+import * as tf from "@tensorflow/tfjs";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertCircle, Plus, Trash2, AlertTriangle, Eye } from "lucide-react"
-import { predictDesertionRisk } from "@/lib/prediction-model"
+
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import StudentDetailModal from "@/components/dashboard/student-detail-modal"
+
+// Variables globales
+let model: tf.GraphModel | null = null;
+let featureColumns: string[] = [];
+let scaler: { mean: number[], scale: number[] } | null = null;
+
+
 
 interface Student {
   id: string
@@ -40,7 +48,73 @@ interface Student {
   faltasTotales: number
   tardanzas: number
   riesgoDesercion: number
+} 
+
+// Cargar el modelo y artifacts
+export async function loadModel() {
+  if (!model) {
+    model = await tf.loadGraphModel("/tfjs_model_graph/model.json");
+  }
+
+  // Cargar featureColumns y scaler aunque model ya exista
+  if (!featureColumns.length) {
+    const fcRes = await fetch("/tfjs_model_graph/feature_columns.json");
+    featureColumns = await fcRes.json();
+  }
+
+  if (!scaler) {
+    const scalerRes = await fetch("/tfjs_model_graph/scaler.json");
+    scaler = await scalerRes.json();
+  }
 }
+
+// Preprocesamiento: one-hot + escalado
+function preprocessData(data: any) {
+  if (!scaler) throw new Error("Scaler no cargado");
+
+  const x: number[] = featureColumns.map((col) => {
+    // One-hot para nivel socioeconómico
+    if (col.startsWith("nivel_socioeconomico_")) {
+      return data.nivel_socioeconomico === col.split("_")[2].toLowerCase() ? 1 : 0;
+    }
+
+    // One-hot para tipo de colegio
+    if (col.startsWith("tipo_colegio_")) {  
+      return data.tipo_colegio === col.split("_")[2].toLowerCase() ? 1 : 0;
+    }
+
+    // One-hot para género
+    if (col.startsWith("genero_")) {
+      return data.genero.toLowerCase() === col.split("_")[1].toLowerCase() ? 1 : 0;
+    }
+
+    // Booleanos
+    if (col === "trabaja_actualmente" || col === "vive_con_familia") {
+      return data[col] ? 1 : 0;
+    }
+
+    // Numéricos
+    return Number(data[col] ?? 0);
+  });
+
+  // Escalado: (x - mean) / scale
+  const scaled = x.map((val, i) => (val - scaler!.mean[i]) / scaler!.scale[i]);
+
+  return tf.tensor2d([scaled]); // forma [1,22]
+}
+
+
+// Predicción
+export async function predictDesertionRisk(data: any): Promise<number> {
+  if (!model) await loadModel();
+  const inputTensor = preprocessData(data);
+  const prediction = model!.predict(inputTensor) as tf.Tensor;
+  const value = (await prediction.data())[0];
+  inputTensor.dispose();
+  prediction.dispose();   
+  return value; // 0..1
+}
+
 
 export default function StudentsSection() {
   
@@ -72,65 +146,108 @@ export default function StudentsSection() {
     tardanzas: 0,
   })
 
+  const [model, setModel] = useState<tf.GraphModel | null>(null)
+
+useEffect(() => {
+  const loadModel = async () => {
+    try { 
+      const loaded = await tf.loadGraphModel("/tfjs_model_graph/model.json")
+      setModel(loaded)
+    } catch (err) {
+      console.error("Error cargando el modelo:", err)
+    }
+  }
+  loadModel()
+}, [])
+
+
+  
+
   useEffect(() => {
     const fetchStudents = async () => {
-      const res = await fetch("http://localhost:3001/api/estudiantes")
-      const data = await res.json()
+      const res = await fetch("http://localhost:3001/api/estudiantes");
+      const data = await res.json();
   
-      const mapped = data.map((a: any) => ({
-        id: a.id,
-        nombre: a.nombre,
-        promedio: parseFloat(a.promedio_ponderado) || 0,  // <- aquí convertimos
-        creditosAprobados: a.creditos_aprobados,
-        creditosReprobados: a.creditos_reprobados,
-        cursosReprobados: a.cursos_reprobados,
-        asistencia: parseFloat(a.asistencia) || 0,
-        avanceAcademico: parseFloat(a.avance_academico) || 0,
-        cicloActual: a.ciclo_actual,
-        vecesRepitio: a.veces_repitio_curso,
-        nivelSocioeconomico: a.nivel_socioeconomico,
-        tipoColegio: a.tipo_colegio,
-        trabaja: a.trabaja_actualmente === 1,
-        ingresosfamiliares: parseFloat(a.ingresos_familiares) || 0,
-        edad: a.edad,
-        genero: a.genero,
-        viveConFamilia: a.vive_con_familia === 1,
-        horasEstudio: a.horas_estudio,
-        faltasTotales: a.faltas_totales,
-        tardanzas: a.tardanzas,
-        riesgoDesercion: predictDesertionRisk({
-          ...a,
-          promedio_ponderado: parseFloat(a.promedio_ponderado),
-          asistencia: parseFloat(a.asistencia),
-          avance_academico: parseFloat(a.avance_academico),
-          ingresos_familiares: parseFloat(a.ingresos_familiares),
-        }),
-      }));
-      
-      setStudents(mapped)
+      const mapped = await Promise.all(
+        data.map(async (a: any) => ({
+          id: a.id,
+          nombre: a.nombre,
+          promedio: parseFloat(a.promedio_ponderado) || 0,
+          creditosAprobados: a.creditos_aprobados,
+          creditosReprobados: a.creditos_reprobados,
+          cursosReprobados: a.cursos_reprobados,
+          asistencia: parseFloat(a.asistencia) || 0,
+          avanceAcademico: parseFloat(a.avance_academico) || 0,
+          cicloActual: a.ciclo_actual,
+          vecesRepitio: a.veces_repitio_curso,
+          nivelSocioeconomico: a.nivel_socioeconomico,
+          tipoColegio: a.tipo_colegio,
+          trabaja: a.trabaja_actualmente === 1,
+          ingresosfamiliares: parseFloat(a.ingresos_familiares) || 0,
+          edad: a.edad,
+          genero: a.genero,
+          viveConFamilia: a.vive_con_familia === 1,
+          horasEstudio: a.horas_estudio,
+          faltasTotales: a.faltas_totales,
+          tardanzas: a.tardanzas,
+          riesgoDesercion: await predictDesertionRisk({
+            ...a,
+            promedio_ponderado: parseFloat(a.promedio_ponderado),
+            asistencia: parseFloat(a.asistencia),
+            avance_academico: parseFloat(a.avance_academico),
+            ingresos_familiares: parseFloat(a.ingresos_familiares),
+          }),
+        }))
+      );
+  
+      setStudents(mapped);
     };
   
-    fetchStudents()
-  }, [])
+    fetchStudents();
+  }, []);
+  
   
 
   
 
   const handleAddStudent = async () => {
-    setIsLoading(true)
-    setLoadingProgress(0)
+    setIsLoading(true);
+    setLoadingProgress(0);
   
     try {
-      
+      // 1. Predecir riesgo con tu modelo
+      const riesgo = await predictDesertionRisk({
+        promedio_ponderado: formData.promedio,
+        creditos_aprobados: formData.creditosAprobados,
+        creditos_reprobados: formData.creditosReprobados,
+        cursos_reprobados: formData.cursosReprobados,
+        asistencia: formData.asistencia,
+        avance_academico: formData.avanceAcademico,
+        ciclo_actual: formData.cicloActual,
+        veces_repitio_curso: formData.vecesRepitio,
+        nivel_socioeconomico: formData.nivelSocioeconomico,
+        tipo_colegio: formData.tipoColegio,
+        trabaja_actualmente: formData.trabaja,
+        ingresos_familiares: formData.ingresosfamiliares,
+        edad: formData.edad,
+        genero: formData.genero,
+        vive_con_familia: formData.viveConFamilia,
+        horas_estudio: formData.horasEstudio,
+        faltas_totales: formData.faltasTotales,
+        tardanzas: formData.tardanzas,
+      });
+  
+      // 2. Mostrar porcentaje de riesgo
+      const riesgoPercent = (riesgo * 100).toFixed(0);
+      alert(`Predicción de deserción: ${riesgoPercent}%`);
+  
+      // 3. Guardar en backend
       const response = await fetch("http://localhost:3001/api/estudiantes", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-         
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nombre: formData.nombre,
-          codigo: "A001", 
+          codigo: "A001",
           promedio_ponderado: formData.promedio,
           creditos_aprobados: formData.creditosAprobados,
           creditos_reprobados: formData.creditosReprobados,
@@ -149,55 +266,28 @@ export default function StudentsSection() {
           horas_estudio: formData.horasEstudio,
           faltas_totales: formData.faltasTotales,
           tardanzas: formData.tardanzas,
-          deserta: 0
+          deserta: riesgo > 0.5 ? 1 : 0
         }),
       });
   
-      if (!response.ok) {
-        throw new Error("No se pudo crear el estudiante");
-      }
+      if (!response.ok) throw new Error("No se pudo crear el estudiante");
   
-      
-      const riesgo = predictDesertionRisk({
-        promedio_ponderado: formData.promedio,
-        creditos_aprobados: formData.creditosAprobados,
-        creditos_reprobados: formData.creditosReprobados,
-        cursos_reprobados: formData.cursosReprobados,
-        asistencia: formData.asistencia,
-        avance_academico: formData.avanceAcademico,
-        ciclo_actual: formData.cicloActual,
-        veces_repitio_curso: formData.vecesRepitio,
-        nivel_socioeconomico:
-          formData.nivelSocioeconomico === "bajo" ? 1 : 
-          formData.nivelSocioeconomico === "medio" ? 2 : 3,
-        tipo_colegio: formData.tipoColegio === "publico" ? 1 : 2,
-        trabaja_actualmente: formData.trabaja ? 1 : 0,
-        ingresos_familiares: formData.ingresosfamiliares,
-        edad: formData.edad,
-        genero: formData.genero === "masculino" ? 1 : 0,
-        vive_con_familia: formData.viveConFamilia ? 1 : 0,
-        horas_estudio: formData.horasEstudio,
-        faltas_totales: formData.faltasTotales,
-        tardanzas: formData.tardanzas,
-      })
-  
-      // 3. Agregar al frontend
-      const newStudent = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...formData,
-        riesgoDesercion: riesgo
-      }
-  
-      setStudents(prev => [...prev, newStudent])
-      setOpenDialog(false)
+      // 4. Agregar al frontend
+      setStudents(prev => [
+        ...prev,
+        { ...formData, id: Math.random().toString(36).substr(2, 9), riesgoDesercion: riesgo }
+      ]);
+      setOpenDialog(false);
   
     } catch (error) {
-      console.error(error)
-      alert("Error al agregar alumno")
+      console.error(error);
+      alert("Error al agregar alumno");
     }
   
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
+  
+  
   
 
   const handleDeleteStudent = (id: string) => {
@@ -562,13 +652,15 @@ export default function StudentsSection() {
      
       {selectedStudent && (
         <StudentDetailModal
-          student={selectedStudent}
-          isOpen={showDetailModal}
-          onClose={() => {
-            setShowDetailModal(false)
-            setSelectedStudent(null)
-          }}
-        />
+        student={selectedStudent}
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedStudent(null)
+        }}
+          model={model} // <-- pasa aquí el modelo cargado
+      />
+      
       )}
     </div>
   )
