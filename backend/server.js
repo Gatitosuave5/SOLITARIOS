@@ -1,11 +1,27 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+
 import express from "express";
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
-import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
-dotenv.config();
+
+
+export const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASS,
+  },
+});
+
+
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -103,6 +119,113 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ error: "Error en el servidor" });
   }
 });
+
+app.post("/api/forgot-password", async (req, res) => {
+  const { correo } = req.body;
+
+  try {
+    // Buscar usuario
+    const [user] = await db.query("SELECT * FROM usuarios WHERE correo = ?", [
+      correo,
+    ]);
+
+    if (!user.length) {
+      return res.status(404).json({ error: "El correo no está registrado" });
+    }
+
+    // Generar código de 6 dígitos
+    const codigo = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Guardar el código en la BD
+    await db.query(
+      "UPDATE usuarios SET codigo_recuperacion = ?, codigo_expira = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE correo = ?",
+      [codigo, correo]
+    );
+
+    // Enviar correo
+    await transporter.sendMail({
+      from: "Sistema de Deserción <tu_correo@gmail.com>",
+      to: correo,
+      subject: "Código de recuperación",
+      html: `
+        <h2>Recuperación de contraseña</h2>
+        <p>Tu código es:</p>
+        <h1 style="letter-spacing:5px;">${codigo}</h1>
+        <p>Este código expira en <b>10 minutos</b>.</p>
+      `,
+    });
+
+    res.json({ message: "Código enviado correctamente" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Error al enviar código" });
+  }
+});
+
+
+
+app.post("/api/verify-code", async (req, res) => {
+  const { correo, codigo } = req.body;
+
+  try {
+    const [user] = await db.query(
+      "SELECT codigo_recuperacion, codigo_expira FROM usuarios WHERE correo = ?",
+      [correo]
+    );
+
+    if (!user.length)
+      return res.status(404).json({ error: "Correo no encontrado" });
+
+    const data = user[0];
+
+    if (data.codigo_recuperacion !== codigo) {
+      return res.status(400).json({ error: "Código inválido" });
+    }
+
+    if (new Date() > data.codigo_expira) {
+      return res.status(400).json({ error: "El código ha expirado" });
+    }
+
+    res.json({ message: "Código correcto" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al verificar código" });
+  }
+});
+
+
+
+app.post("/api/reset-password", async (req, res) => {
+  const { correo, codigo, contraseña } = req.body;
+
+  try {
+    const [user] = await db.query(
+      "SELECT codigo_recuperacion FROM usuarios WHERE correo = ?",
+      [correo]
+    );
+
+    if (!user.length) {
+      return res.status(404).json({ error: "Correo no encontrado" });
+    }
+
+    if (user[0].codigo_recuperacion !== codigo) {
+      return res.status(400).json({ error: "Código incorrecto" });
+    }
+
+    const hash = await bcrypt.hash(contraseña, 10);
+
+    await db.query(
+      "UPDATE usuarios SET contraseña = ?, codigo_recuperacion = NULL, codigo_expira = NULL WHERE correo = ?",
+      [hash, correo]
+    );
+
+    res.json({ message: "Contraseña actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al cambiar la contraseña" });
+  }
+});
+
+
+
 
 // Ruta protegida ejemplo: obtener usuarios
 app.get("/api/users", verifyToken, async (req, res) => {
