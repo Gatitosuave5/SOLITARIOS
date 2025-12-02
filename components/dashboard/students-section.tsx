@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,12 +19,10 @@ import {
 } from "@/components/ui/dialog"
 import StudentDetailModal from "@/components/dashboard/student-detail-modal"
 
-// Variables globales
-let model: tf.GraphModel | null = null;
-let featureColumns: string[] = [];
-let scaler: { mean: number[], scale: number[] } | null = null;
-
-
+// Variables globales para TF
+let model: tf.GraphModel | null = null
+let featureColumns: string[] = []
+let scaler: { mean: number[]; scale: number[] } | null = null
 
 interface Student {
   id: string
@@ -48,82 +46,76 @@ interface Student {
   faltasTotales: number
   tardanzas: number
   riesgoDesercion: number
-} 
+}
 
 // Cargar el modelo y artifacts
 export async function loadModel() {
   if (!model) {
-    model = await tf.loadGraphModel("/tfjs_model_graph/model.json");
+    model = await tf.loadGraphModel("/tfjs_model_graph/model.json")
   }
 
-  // Cargar featureColumns y scaler aunque model ya exista
   if (!featureColumns.length) {
-    const fcRes = await fetch("/tfjs_model_graph/feature_columns.json");
-    featureColumns = await fcRes.json();
+    const fcRes = await fetch("/tfjs_model_graph/feature_columns.json")
+    featureColumns = await fcRes.json()
   }
 
   if (!scaler) {
-    const scalerRes = await fetch("/tfjs_model_graph/scaler.json");
-    scaler = await scalerRes.json();
+    const scalerRes = await fetch("/tfjs_model_graph/scaler.json")
+    scaler = await scalerRes.json()
   }
 }
 
-// Preprocesamiento: one-hot + escalado
+// Preprocesamiento
 function preprocessData(data: any) {
-  if (!scaler) throw new Error("Scaler no cargado");
+  if (!scaler) throw new Error("Scaler no cargado")
 
   const x: number[] = featureColumns.map((col) => {
-    // One-hot para nivel socioeconómico
     if (col.startsWith("nivel_socioeconomico_")) {
-      return data.nivel_socioeconomico === col.split("_")[2].toLowerCase() ? 1 : 0;
+      return data.nivel_socioeconomico === col.split("_")[2].toLowerCase() ? 1 : 0
     }
 
-    // One-hot para tipo de colegio
-    if (col.startsWith("tipo_colegio_")) {  
-      return data.tipo_colegio === col.split("_")[2].toLowerCase() ? 1 : 0;
+    if (col.startsWith("tipo_colegio_")) {
+      return data.tipo_colegio === col.split("_")[2].toLowerCase() ? 1 : 0
     }
 
-    // One-hot para género
     if (col.startsWith("genero_")) {
-      return data.genero.toLowerCase() === col.split("_")[1].toLowerCase() ? 1 : 0;
+      return data.genero.toLowerCase() === col.split("_")[1].toLowerCase() ? 1 : 0
     }
 
-    // Booleanos
     if (col === "trabaja_actualmente" || col === "vive_con_familia") {
-      return data[col] ? 1 : 0;
+      return data[col] ? 1 : 0
     }
 
-    // Numéricos
-    return Number(data[col] ?? 0);
-  });
+    return Number(data[col] ?? 0)
+  })
 
-  // Escalado: (x - mean) / scale
-  const scaled = x.map((val, i) => (val - scaler!.mean[i]) / scaler!.scale[i]);
-
-  return tf.tensor2d([scaled]); // forma [1,22]
+  const scaled = x.map((val, i) => (val - scaler!.mean[i]) / scaler!.scale[i])
+  return tf.tensor2d([scaled])
 }
-
 
 // Predicción
 export async function predictDesertionRisk(data: any): Promise<number> {
-  if (!model) await loadModel();
-  const inputTensor = preprocessData(data);
-  const prediction = model!.predict(inputTensor) as tf.Tensor;
-  const value = (await prediction.data())[0];
-  inputTensor.dispose();
-  prediction.dispose();   
-  return value; // 0..1
+  if (!model) await loadModel()
+  const inputTensor = preprocessData(data)
+  const prediction = model!.predict(inputTensor) as tf.Tensor
+  const value = (await prediction.data())[0]
+  inputTensor.dispose()
+  prediction.dispose()
+  return value // 0..1
 }
 
-
 export default function StudentsSection() {
-  
   const [students, setStudents] = useState<Student[]>([])
   const [openDialog, setOpenDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+
+  // 🔔 NUEVO: estados para alerta de riesgo alto
+  const [alertStudent, setAlertStudent] = useState<Student | null>(null)
+  const [showAlertModal, setShowAlertModal] = useState(false)
+
   const [formData, setFormData] = useState({
     nombre: "",
     promedio: 0,
@@ -146,28 +138,25 @@ export default function StudentsSection() {
     tardanzas: 0,
   })
 
-  const [model, setModel] = useState<tf.GraphModel | null>(null)
+  const [tfModel, setTfModel] = useState<tf.GraphModel | null>(null)
 
-useEffect(() => {
-  const loadModel = async () => {
-    try { 
-      const loaded = await tf.loadGraphModel("/tfjs_model_graph/model.json")
-      setModel(loaded)
-    } catch (err) {
-      console.error("Error cargando el modelo:", err)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const loaded = await tf.loadGraphModel("/tfjs_model_graph/model.json")
+        setTfModel(loaded)
+      } catch (err) {
+        console.error("Error cargando el modelo:", err)
+      }
     }
-  }
-  loadModel()
-}, [])
-
-
-  
+    load()
+  }, [])
 
   useEffect(() => {
     const fetchStudents = async () => {
-      const res = await fetch("http://localhost:3001/api/estudiantes");
-      const data = await res.json();
-  
+      const res = await fetch("http://localhost:3001/api/estudiantes")
+      const data = await res.json()
+
       const mapped = await Promise.all(
         data.map(async (a: any) => ({
           id: a.id,
@@ -197,25 +186,20 @@ useEffect(() => {
             avance_academico: parseFloat(a.avance_academico),
             ingresos_familiares: parseFloat(a.ingresos_familiares),
           }),
-        }))
-      );
-  
-      setStudents(mapped);
-    };
-  
-    fetchStudents();
-  }, []);
-  
-  
+        })),
+      )
 
-  
+      setStudents(mapped)
+    }
+
+    fetchStudents()
+  }, [])
 
   const handleAddStudent = async () => {
-    setIsLoading(true);
-    setLoadingProgress(0);
-  
+    setIsLoading(true)
+    setLoadingProgress(0)
+
     try {
-      // 1. Predecir riesgo con tu modelo
       const riesgo = await predictDesertionRisk({
         promedio_ponderado: formData.promedio,
         creditos_aprobados: formData.creditosAprobados,
@@ -235,13 +219,11 @@ useEffect(() => {
         horas_estudio: formData.horasEstudio,
         faltas_totales: formData.faltasTotales,
         tardanzas: formData.tardanzas,
-      });
-  
-      // 2. Mostrar porcentaje de riesgo
-      const riesgoPercent = (riesgo * 100).toFixed(0);
-      alert(`Predicción de deserción: ${riesgoPercent}%`);
-  
-      // 3. Guardar en backend
+      })
+
+      const riesgoPercent = (riesgo * 100).toFixed(0)
+      alert(`Predicción de deserción: ${riesgoPercent}%`)
+
       const response = await fetch("http://localhost:3001/api/estudiantes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,29 +248,24 @@ useEffect(() => {
           horas_estudio: formData.horasEstudio,
           faltas_totales: formData.faltasTotales,
           tardanzas: formData.tardanzas,
-          deserta: riesgo > 0.5 ? 1 : 0
+          deserta: riesgo > 0.5 ? 1 : 0,
         }),
-      });
-  
-      if (!response.ok) throw new Error("No se pudo crear el estudiante");
-  
-      // 4. Agregar al frontend
-      setStudents(prev => [
+      })
+
+      if (!response.ok) throw new Error("No se pudo crear el estudiante")
+
+      setStudents((prev) => [
         ...prev,
-        { ...formData, id: Math.random().toString(36).substr(2, 9), riesgoDesercion: riesgo }
-      ]);
-      setOpenDialog(false);
-  
+        { ...formData, id: Math.random().toString(36).substr(2, 9), riesgoDesercion: riesgo },
+      ])
+      setOpenDialog(false)
     } catch (error) {
-      console.error(error);
-      alert("Error al agregar alumno");
+      console.error(error)
+      alert("Error al agregar alumno")
     }
-  
-    setIsLoading(false);
-  };
-  
-  
-  
+
+    setIsLoading(false)
+  }
 
   const handleDeleteStudent = (id: string) => {
     setStudents(students.filter((s) => s.id !== id))
@@ -305,23 +282,43 @@ useEffect(() => {
     if (risk > 0.4) return "RIESGO MEDIO"
     return "RIESGO BAJO"
   }
-  // Modal de carga
-const LoadingModal = () => (
-  <Dialog open={isLoading}>
-    <DialogContent className="flex flex-col items-center gap-4 py-10 max-w-xs text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-      <h2 className="text-lg font-semibold">Procesando...</h2>
-      <p className="text-sm text-muted-foreground">
-        Calculando riesgo y guardando al alumno
-      </p>
-    </DialogContent>
-  </Dialog>
-);
 
+  // Modal de carga
+  const LoadingModal = () => (
+    <Dialog open={isLoading}>
+      <DialogContent className="flex flex-col items-center gap-4 py-10 max-w-xs text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
+        <h2 className="text-lg font-semibold">Procesando...</h2>
+        <p className="text-sm text-muted-foreground">Calculando riesgo y guardando al alumno</p>
+      </DialogContent>
+    </Dialog>
+  )
+
+  // 🔔 Modal de alerta de riesgo alto
+  const AlertRiskModal = () => (
+    <Dialog open={showAlertModal} onOpenChange={setShowAlertModal}>
+      <DialogContent className="max-w-md text-center">
+        <DialogHeader>
+          <DialogTitle className="text-red-600">⚠️ Alerta de Riesgo Alto</DialogTitle>
+          <DialogDescription>
+            El estudiante <strong>{alertStudent?.nombre}</strong> tiene un riesgo de deserción mayor al 70%.
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground mb-4">
+          Se recomienda contactar al estudiante y tomar acciones preventivas (tutorías, apoyo psicológico,
+          acompañamiento académico, etc.).
+        </p>
+
+        <Button onClick={() => setShowAlertModal(false)} className="bg-red-600 hover:bg-red-700 text-white w-full">
+          Cerrar alerta
+        </Button>
+      </DialogContent>
+    </Dialog>
+  )
 
   return (
     <div className="space-y-6">
-      
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold">Gestión de Alumnos</h2>
@@ -343,15 +340,17 @@ const LoadingModal = () => (
 
             {isLoading && (
               <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full transition-all duration-300"
-                  style={{ width: `${loadingProgress}%` }}
-                />
+                <div className="bg-blue-600 h-full transition-all duration-300" style={{ width: `${loadingProgress}%` }} />
               </div>
             )}
 
+            {/* FORMULARIO */}
+            {/* ... todo tu formulario tal como ya lo tenías ... */}
+            {/* (lo mantengo igual, ya está funcionando) */}
+
+            {/* 👇 aquí sigue exactamente tu formulario, sin cambios */}
+            {/* --- INICIO FORM (no lo tocamos) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-             
               <div className="md:col-span-2">
                 <h3 className="font-semibold mb-3 text-sm">Datos Personales</h3>
               </div>
@@ -365,8 +364,6 @@ const LoadingModal = () => (
                   disabled={isLoading}
                 />
               </div>
-
-        
 
               <div>
                 <Label>Edad</Label>
@@ -392,7 +389,6 @@ const LoadingModal = () => (
                 </select>
               </div>
 
-              {/* Datos Académicos */}
               <div className="md:col-span-2">
                 <h3 className="font-semibold mb-3 text-sm mt-4">Datos Académicos</h3>
               </div>
@@ -521,7 +517,6 @@ const LoadingModal = () => (
                 />
               </div>
 
-              {/* Datos Socioeconómicos */}
               <div className="md:col-span-2">
                 <h3 className="font-semibold mb-3 text-sm mt-4">Datos Socioeconómicos</h3>
               </div>
@@ -599,83 +594,105 @@ const LoadingModal = () => (
                 {isLoading ? "Procesando..." : "Agregar Alumno"}
               </Button>
             </div>
+            {/* --- FIN FORM --- */}
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Students Table */}
+      {/* TABLA DE ESTUDIANTES */}
       {students.length > 0 ? (
         <Card>
           <Table>
-          <TableHeader>
-          <TableRow>
-            <TableHead>ID</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Promedio</TableHead>
-            <TableHead>Ciclo</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="w-32"></TableHead>
-          </TableRow>
-        </TableHeader>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Promedio</TableHead>
+                <TableHead>Ciclo</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="w-64" />
+              </TableRow>
+            </TableHeader>
 
-        <TableBody>
-          {students.map((student) => (
-            <TableRow key={student.id}>
-              <TableCell>{student.id}</TableCell>
-              <TableCell>{student.nombre || `Alumno ${student.id}`}</TableCell>
-              <TableCell>{Number(student.promedio).toFixed(2)}</TableCell>
-              <TableCell>{student.cicloActual}</TableCell>
-              <TableCell>
-                <div
-                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${getRiskColor(student.riesgoDesercion)}`}
-                >
-                  {student.riesgoDesercion > 0.7 && <AlertTriangle className="w-4 h-4" />}
-                  {getRiskLabel(student.riesgoDesercion)}
-                </div>
-              </TableCell>
-              <TableCell className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedStudent(student)
-                    setShowDetailModal(true)
-                  }}
-                  className="gap-1"
-                >
-                  <Eye className="w-4 h-4" />
-                  Ver Información
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(student.id)}>
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
+            <TableBody>
+              {students.map((student) => (
+                <TableRow key={student.id}>
+                  <TableCell>{student.id}</TableCell>
+                  <TableCell>{student.nombre || `Alumno ${student.id}`}</TableCell>
+                  <TableCell>{Number(student.promedio).toFixed(2)}</TableCell>
+                  <TableCell>{student.cicloActual}</TableCell>
+                  <TableCell>
+                    <div
+                      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${getRiskColor(
+                        student.riesgoDesercion,
+                      )}`}
+                    >
+                      {student.riesgoDesercion > 0.7 && <AlertTriangle className="w-4 h-4" />}
+                      {getRiskLabel(student.riesgoDesercion)}
+                    </div>
+                  </TableCell>
+
+                  {/* ACCIONES */}
+                  <TableCell className="flex gap-2">
+                    {/* 🔔 Botón de alerta solo si riesgo > 0.7 */}
+                    {student.riesgoDesercion > 0.7 && (
+                      <Button
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={() => {
+                          setAlertStudent(student)
+                          setShowAlertModal(true)
+                        }}
+                      >
+                        ⚠ Generar alerta
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedStudent(student)
+                        setShowDetailModal(true)
+                      }}
+                      className="gap-1"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Ver Información
+                    </Button>
+
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(student.id)}>
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
           </Table>
         </Card>
       ) : (
         <Card className="p-12 text-center">
           <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">No hay alumnos registrados. Agrega tu primer alumno para comenzar.</p>
+          <p className="text-muted-foreground">
+            No hay alumnos registrados. Agrega tu primer alumno para comenzar.
+          </p>
         </Card>
       )}
 
-     
       {selectedStudent && (
         <StudentDetailModal
-        student={selectedStudent}
-        isOpen={showDetailModal}
-        onClose={() => {
-          setShowDetailModal(false)
-          setSelectedStudent(null)
-        }}
-          model={model} // <-- pasa aquí el modelo cargado
-      />
-      
+          student={selectedStudent}
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedStudent(null)
+          }}
+          model={tfModel}
+        />
       )}
-      <LoadingModal /> 
+
+      <LoadingModal />
+      <AlertRiskModal />
     </div>
   )
 }
