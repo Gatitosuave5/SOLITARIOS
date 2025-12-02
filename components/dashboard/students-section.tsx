@@ -305,6 +305,19 @@ useEffect(() => {
     if (risk > 0.4) return "RIESGO MEDIO"
     return "RIESGO BAJO"
   }
+  // Modal de carga
+const LoadingModal = () => (
+  <Dialog open={isLoading}>
+    <DialogContent className="flex flex-col items-center gap-4 py-10 max-w-xs text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <h2 className="text-lg font-semibold">Procesando...</h2>
+      <p className="text-sm text-muted-foreground">
+        Calculando riesgo y guardando al alumno
+      </p>
+    </DialogContent>
+  </Dialog>
+);
+
 
   return (
     <div className="space-y-6">
@@ -662,6 +675,7 @@ useEffect(() => {
       />
       
       )}
+      <LoadingModal /> 
     </div>
   )
 }
