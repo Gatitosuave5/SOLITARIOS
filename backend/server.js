@@ -163,6 +163,36 @@ app.post("/api/forgot-password", async (req, res) => {
 });
 
 
+// Eliminar estudiante por ID
+app.delete("/api/estudiantes/:id", async (req, res) => {
+  const { id } = req.params;
+
+  console.log("ID recibido para borrar:", id);
+
+  try {
+    // Revisar si existe
+    const [existing] = await db.query(
+      "SELECT * FROM alumnos WHERE id = ?", 
+      [id]
+    );
+
+    if (!existing.length) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    // Eliminar
+    await db.query("DELETE FROM alumnos WHERE id = ?", [id]);
+
+    res.json({ message: "Estudiante eliminado correctamente" });
+
+  } catch (error) {
+    console.error("ERROR ELIMINANDO:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
 
 app.post("/api/verify-code", async (req, res) => {
   const { correo, codigo } = req.body;
@@ -321,9 +351,12 @@ app.post("/api/estudiantes", async (req, res) => {
       deserta || 0
     ];
 
-    await db.query(sql, values);
+    const [result] = await db.query(sql, values);
 
-    res.json({ message: "Estudiante creado correctamente" });
+    res.json({
+      id: result.insertId,     // ⬅ DEVUELVE EL ID AUTOINCREMENTAL
+      message: "Estudiante creado correctamente"
+    });
 
   } catch (error) {
     console.error(error);
