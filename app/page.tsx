@@ -8,12 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, GraduationCap } from "lucide-react";
 
+
+
+
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  
+
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +34,14 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
+  
       if (!email.includes("@")) {
         setError("Ingresa un email válido");
         setIsLoading(false);
         return;
       }
   
-      
+      // 1️⃣ Login al backend
       const res = await fetch("http://localhost:3001/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,13 +51,18 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error en la autenticación");
   
-      
+      // 2️⃣ Guardas el token en cookie HTTP-only con tu endpoint interno
+      await fetch("/api/set-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: data.token }),
+      });
+  
+      // (Opcional) guardar en localStorage
       localStorage.setItem("token", data.token);
   
-     
       const payload = JSON.parse(atob(data.token.split(".")[1]));
   
-   
       localStorage.setItem(
         "usuario",
         JSON.stringify({
@@ -59,7 +73,7 @@ export default function LoginPage() {
         })
       );
   
-      
+      // 3️⃣ Redirección
       router.push("/panel");
   
     } catch (err: any) {
@@ -67,7 +81,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-  
 
   return (
 
