@@ -40,34 +40,91 @@ export default function UsersSection() {
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
+    contraseña: "",
     rol: "profesor" as const,
   })
 
-  const handleAddUser = () => {
-    if (!formData.nombre || !formData.email) {
+  const handleAddUser = async () => {
+    if (!formData.nombre || !formData.email || !formData.contraseña) {
       alert("Por favor completa todos los campos")
       return
     }
-
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...formData,
-      estado: "activo",
-      fechaCreacion: new Date().toISOString().split("T")[0],
+  
+    try {
+      const res = await fetch("http://localhost:3001/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          correo: formData.email,
+          contraseña: formData.contraseña,
+          rol: formData.rol,
+        }),
+      })
+  
+      const data = await res.json()
+  
+      if (!res.ok) {
+        alert(data.error || "Error al registrar")
+        return
+      }
+  
+      alert("Usuario registrado correctamente")
+  
+      // Agregar al estado local (opcional)
+      const newUser: User = {
+        id: Math.random().toString(36).substr(2, 9),
+        nombre: formData.nombre,
+        email: formData.email,
+        rol: formData.rol,
+        estado: "activo",
+        fechaCreacion: new Date().toISOString().split("T")[0],
+      }
+  
+      setUsers([...users, newUser])
+  
+      // Reset
+      setFormData({ nombre: "", email: "", contraseña: "", rol: "profesor" })
+      setOpenDialog(false)
+  
+    } catch (error) {
+      console.error(error)
+      alert("Error conectando al servidor")
     }
-
-    setUsers([...users, newUser])
-    setFormData({ nombre: "", email: "", rol: "profesor" })
-    setOpenDialog(false)
   }
+  
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (id === "1") {
-      alert("No se puede eliminar el usuario admin")
-      return
+      alert("No se puede eliminar el usuario admin");
+      return;
     }
-    setUsers(users.filter((u) => u.id !== id))
-  }
+  
+    if (!confirm("¿Eliminar este usuario?")) return;
+  
+    try {
+      const res = await fetch(`http://localhost:3001/api/deleteUser/${id}`, {
+        method: "DELETE",
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok) {
+        alert(data.error || "Error al eliminar");
+        return;
+      }
+  
+      // Eliminar del estado local
+      setUsers(users.filter((u) => u.id !== id));
+      alert("Usuario eliminado correctamente");
+    } catch (error) {
+      console.error(error);
+      alert("Error conectando al servidor");
+    }
+  };
+  
 
   return (
     <div className="space-y-6">
@@ -112,6 +169,16 @@ export default function UsersSection() {
               </div>
 
               <div>
+                  <Label>Contraseña</Label>
+                  <Input
+                    type="password"
+                    value={formData.contraseña}
+                    onChange={(e) => setFormData({ ...formData, contraseña: e.target.value })}
+                    placeholder="********"
+                  />  
+                </div>
+
+              <div>
                 <Label>Rol</Label>
                 <select
                   value={formData.rol}
@@ -149,7 +216,7 @@ export default function UsersSection() {
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody> 
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.nombre}</TableCell>
@@ -161,17 +228,17 @@ export default function UsersSection() {
                     </span>
                   </TableCell>
                   <TableCell>{user.fechaCreacion}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteUser(user.id)}
-                      disabled={user.id === "1"}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                        disabled={user.id === "1"}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
               ))}
             </TableBody>
           </Table>

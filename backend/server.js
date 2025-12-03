@@ -167,7 +167,7 @@ app.post("/api/forgot-password", async (req, res) => {
 app.delete("/api/estudiantes/:id", async (req, res) => {
   const { id } = req.params;
 
-  console.log("ID recibido para borrar:", id);
+  // console.log("ID recibido para borrar:", id);
 
   try {
     // Revisar si existe
@@ -191,6 +191,27 @@ app.delete("/api/estudiantes/:id", async (req, res) => {
   }
 });
 
+app.delete("/api/deleteUser/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // Evitar borrar admin principal
+  if (id === "1") {
+    return res.status(400).json({ error: "No se puede eliminar el usuario admin" });
+  }
+
+  try {
+    const [result] = await db.query("DELETE FROM usuarios WHERE id = ?", [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    res.json({ message: "Usuario eliminado correctamente" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error en el servidor" });
+  }
+});
 
 
 
