@@ -8,7 +8,7 @@
   import { Label } from "@/components/ui/label"
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
   import { AlertCircle, Plus, Trash2, AlertTriangle, Eye } from "lucide-react"
-
+  import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
   import {
     Dialog,
     DialogContent,
@@ -248,6 +248,7 @@
         
 
         const response = await fetch("http://localhost:3001/api/estudiantes", {
+          
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -274,18 +275,19 @@
             deserta: riesgo > 0.5 ? 1 : 0,
           }),
         })
-
+        const data = await response.json()
         if (!response.ok) throw new Error("No se pudo crear el estudiante")
-
-          const saved = await response.json();
 
           setStudents((prev) => [
             ...prev,
             {
-              ...saved,
-              riesgoDesercion: riesgo
+              ...formData,
+              id: data.id,                // <--- USAMOS EL ID REAL DE LA BD
+              riesgoDesercion: riesgo,
             },
-          ]);
+          ])
+
+        
         setOpenDialog(false)
       } catch (error) {
         console.error(error)
@@ -337,6 +339,11 @@
     const LoadingModal = () => (
       <Dialog open={isLoading}>
         <DialogContent className="flex flex-col items-center gap-4 py-10 max-w-xs text-center">
+    
+          <VisuallyHidden>
+            <DialogTitle>Cargando</DialogTitle>
+          </VisuallyHidden>
+    
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
           <h2 className="text-lg font-semibold">Procesando...</h2>
           <p className="text-sm text-muted-foreground">Calculando riesgo y guardando al alumno</p>
