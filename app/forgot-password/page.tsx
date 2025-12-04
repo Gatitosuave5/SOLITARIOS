@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
       }
 
       // Llamada al backend para enviar código de recuperación
-      const res = await fetch("http://localhost:3001/api/forgot-password", {
+      const res = await fetch("http://136.112.143.156:3001/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: email }),
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
       }
 
       // Llamada al backend para verificar código
-      const res = await fetch("http://localhost:3001/api/verify-code", {
+      const res = await fetch("http://136.112.143.156:3001/api/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: email, codigo: code }),
@@ -127,7 +127,7 @@ export default function ForgotPasswordPage() {
       }
 
       // Llamada al backend para cambiar contraseña
-      const res = await fetch("http://localhost:3001/api/reset-password", {
+      const res = await fetch("http://136.112.143.156:3001/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

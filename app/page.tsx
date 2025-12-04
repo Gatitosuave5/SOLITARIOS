@@ -42,7 +42,7 @@ export default function LoginPage() {
       }
   
       // 1️⃣ Login al backend
-      const res = await fetch("http://localhost:3001/api/login", {
+      const res = await fetch("http://136.112.143.156:3001/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         

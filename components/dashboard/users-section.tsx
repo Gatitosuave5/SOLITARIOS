@@ -51,7 +51,7 @@ export default function UsersSection() {
     }
   
     try {
-      const res = await fetch("http://localhost:3001/api/register", {
+      const res = await fetch("http://136.112.143.156:3001/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -105,7 +105,7 @@ export default function UsersSection() {
     if (!confirm("¿Eliminar este usuario?")) return;
   
     try {
-      const res = await fetch(`http://localhost:3001/api/deleteUser/${id}`, {
+      const res = await fetch(`http://136.112.143.156:3001/api/deleteUser/${id}`, {
         method: "DELETE",
       });
   
