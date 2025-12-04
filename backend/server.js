@@ -93,7 +93,7 @@
     });
 
 
-    const verifyToken = require("./middleware");
+    
 
     app.get("/api/usuarios", verifyToken, async (req, res) => {
       const rows = await db.query("SELECT * FROM usuarios");
