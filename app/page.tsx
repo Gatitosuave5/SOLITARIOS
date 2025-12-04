@@ -45,6 +45,7 @@ export default function LoginPage() {
       const res = await fetch("http://localhost:3001/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        
         body: JSON.stringify({ correo: email, contraseña: password }),
       });
   
@@ -55,6 +56,7 @@ export default function LoginPage() {
       await fetch("/api/set-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",  
         body: JSON.stringify({ token: data.token }),
       });
   
