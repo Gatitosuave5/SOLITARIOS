@@ -36,7 +36,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
         <nav className="space-y-2">
           <a href="/panel" className="block p-2 rounded hover:bg-gray-700">Inicio</a>
           <a href="/dashboard" className="block p-2 rounded hover:bg-gray-700">Panel</a>
-          <a href="/reportes" className="block p-2 rounded hover:bg-gray-700">Reportes</a>
+         
         </nav>
       </aside>
 
