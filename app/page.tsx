@@ -45,26 +45,17 @@ export default function LoginPage() {
       const res = await fetch("http://136.112.143.156:3001/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        
         body: JSON.stringify({ correo: email, contraseña: password }),
       });
   
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error en la autenticación");
   
-      // 2️⃣ Guardas el token en cookie HTTP-only con tu endpoint interno
-      await fetch("/api/set-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",  
-        body: JSON.stringify({ token: data.token }),
-      });
-  
-      // (Opcional) guardar en localStorage
+      // 2️⃣ Guardar token SOLO en localStorage
       localStorage.setItem("token", data.token);
   
+      // 3️⃣ Guardar datos del usuario
       const payload = JSON.parse(atob(data.token.split(".")[1]));
-  
       localStorage.setItem(
         "usuario",
         JSON.stringify({
@@ -75,7 +66,7 @@ export default function LoginPage() {
         })
       );
   
-      // 3️⃣ Redirección
+      // 4️⃣ Redirección
       router.push("/panel");
   
     } catch (err: any) {
