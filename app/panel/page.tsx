@@ -657,23 +657,39 @@ function App() {
                         Distribución por Categoría
                       </h3>
                       <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
+                      <PieChart width={350} height={250}>
                           <Pie
                             data={chartData}
                             cx="50%"
                             cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                             outerRadius={80}
-                            fill="#8884d8"
                             dataKey="value"
+                            labelLine={false}
+                            label={false}   // <- DESACTIVA LABELS QUE SE MONTAN
                           >
                             {chartData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                           </Pie>
+
                           <Tooltip />
+
+                          <Legend 
+                            layout="vertical" 
+                            align="right" 
+                            verticalAlign="middle"
+                            formatter={(value, entry) => {
+                              const percent = (
+                                (entry.payload.value /
+                                  chartData.reduce((sum, d) => sum + d.value, 0)) *
+                                100
+                              ).toFixed(0);
+
+                              return `${value}: ${percent}%`;
+                            }}
+                          />
                         </PieChart>
+
                       </ResponsiveContainer>
                     </div>
                     <div>
@@ -706,17 +722,7 @@ function App() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-6">
-                    <Search className="w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por ID o Nombre..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(0);
-                      }}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
