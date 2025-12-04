@@ -50,7 +50,7 @@ export default function RegisterPage() {
       }
 
       
-      const response = await fetch("http://localhost:3001/api/register", {
+      const response = await fetch("http://136.112.143.156:3001/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
