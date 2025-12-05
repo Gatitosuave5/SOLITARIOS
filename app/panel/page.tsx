@@ -59,6 +59,13 @@ const FEATURE_COLUMNS = [
 let featureColumns = [];
 let scaler = null;
 
+/////////////////////////////////////////
+//////2. Carga de Artifacts/////////////
+///////////////////////////////////////
+//////El modelo necesita columnas ordenadas y valores normalizados.////////
+
+
+
 async function loadArtifacts() {
   if (!featureColumns.length) {
     featureColumns = await (await fetch("/tfjs_model_graph/feature_columns.json")).json();
@@ -81,6 +88,14 @@ function transformRowToTensor(row: any) {
 
   return tf.tensor2d([values]);
 }
+
+
+//////////////////////////////////////////////
+////////3. Tu modelo espera un array ordenado de inputs./////////////////////
+////////La función que construye el input a partir de un registro CSV es://////////////////////
+//////////////////////////////////////////////
+
+
 
 function buildInputFromCSVRow(row) {
   const socio = String(row["nivel_socioeconomico"] ?? "").toLowerCase();
@@ -123,16 +138,21 @@ function buildInputFromCSVRow(row) {
   return ordered;
 }
 
+////////PREDICCION//////////
+/////Toda esta lógica está dentro de://///
 async function predictStudent(row) {
   const model = await loadModel();
   await loadArtifacts();
 
   const raw = buildInputFromCSVRow(row);
 
+  ///////////////////////////////////////
+  /////4. Normalización antes de predecir//////
   const scaled = raw.map((v, i) => (v - scaler.mean[i]) / scaler.scale[i]);
 
   const tensor = tf.tensor2d([scaled], [1, scaled.length]);
 
+  ////////////////5. Predicción con el modelo////////
   const pred = model.predict(tensor);
   const prob = (await pred.data())[0];
 
@@ -155,6 +175,10 @@ interface StudentData {
 }
 
 let model: tf.GraphModel | null = null;
+
+//////////////////////////////////////////////////////////
+/////////////// AQUI CARGAS EL MODELO///////////
+//////////////////////////////////////////////////////////
 
 async function loadModel() {
 
@@ -305,6 +329,11 @@ function App() {
        
         Promise.all(
           pendingData.map(async (student) => {
+
+            {/* 
+            Uso del modelo durante el procesamiento del CSV
+            Cuando subes un archivo, cada estudiante pasa por:
+            */}
             const { prob, deserta } = await predictStudent(student);
 
             let riskLevel: any;
@@ -318,6 +347,7 @@ function App() {
               riskLevel,
               willDesert: deserta === 1,
             };
+            /////////// Aquí el modelo se ejecuta tantas veces como estudiantes tenga el CSV.
      
           })
         ).then((processed) => {
@@ -857,3 +887,7 @@ function App() {
 }
 
 export default App; 
+
+////////////////////////
+//////CSV → filas → buildInputFromCSVRow → normalización 
+//////////→ loadModel() → model.predict(tensor) → prob → riesgo

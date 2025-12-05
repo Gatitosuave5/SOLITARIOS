@@ -107,7 +107,7 @@
   }
 
   async function deleteStudent(id: number) {
-    const res = await fetch(`http://136.112.143.156:3001/api/estudiantes/${id}`, {
+    const res = await fetch(`http://localhost:3001/api/estudiantes/${id}`, {
       method: "DELETE",
     });
 
@@ -170,7 +170,7 @@
 
     useEffect(() => {
       const fetchStudents = async () => {
-        const res = await fetch("http://136.112.143.156:3001/api/estudiantes")
+        const res = await fetch("http://localhost:3001/api/estudiantes")
         const data = await res.json()
 
         const mapped = await Promise.all(
@@ -247,7 +247,7 @@
 
         
 
-        const response = await fetch("http://136.112.143.156:3001/api/estudiantes", {
+        const response = await fetch("http://localhost:3001/api/estudiantes", {
           
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -302,7 +302,7 @@
       if (!confirmDelete) return;
     
       try {
-        const res = await fetch(`http://136.112.143.156:3001/api/estudiantes/${id}`, {
+        const res = await fetch(`http://localhost:3001/api/estudiantes/${id}`, {
           method: "DELETE",
         });
     
@@ -731,7 +731,7 @@
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </Button>
                     </TableCell>
-                  </TableRow>
+                  </TableRow> 
                 ))}
               </TableBody>
             </Table>
